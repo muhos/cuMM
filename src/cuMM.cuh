@@ -65,6 +65,7 @@ void matrixMul_tiled_db(const T *A, const T *B, T *C);
 #define OPT2_BM 128
 #define OPT2_BN 128
 #define OPT2_REG_TILESIZE 8
+
 template <typename T, int TILESIZE> 
 __global__ 
 void matrixMulHIP_tiled_db_reg(const T *A, const T *B, T *C);
@@ -78,6 +79,7 @@ void matrixMulHIP_tiled_db_reg(const T *A, const T *B, T *C);
 #define OPT3_BN 128
 #define OPT3_REG_TILESIZE 8
 #define OPT3_VSIZE 4
+
 template <typename T, int TILESIZE> 
 __global__
 void matrixMul_tiled_db_reg_vec(T *A, T *B, T *C);
@@ -113,6 +115,7 @@ static_assert(OPT4_WM % OPT4_WARP_STEP_M == 0);
 static_assert(OPT4_WN % OPT4_WARP_STEP_N == 0);
 constexpr int OPT4_WARP_M_ITERS = OPT4_WM / OPT4_WARP_STEP_M;
 constexpr int OPT4_WARP_N_ITERS = OPT4_WN / OPT4_WARP_STEP_N;
+
 template <typename T, int TILESIZE>
 __global__ 
 void matrixMul_tiled_db_reg_vec_warp(const T *A, const T *B, T *C);
