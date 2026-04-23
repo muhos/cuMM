@@ -1,6 +1,6 @@
 # CUDA Matrix Multiplication: From Naive to Tensor Cores
 
-A progressive, hand-crafted implementation of single-precision matrix multiplication (SGEMM) in CUDA C++, built from scratch without relying on high-level abstractions. The final kernel uses **TF32 Tensor Cores via inline PTX**, asynchronous pipelining, warp-level tiling, and bank-conflict-free shared memory outperforming non-tensor cuBLAS performance on `(4096 x 10240 x 4096)` dimensions.
+A progressive, hand-crafted implementation of single-precision matrix multiplication (SGEMM) in CUDA C++, built from scratch for efficient state-vector operations and AI-driven workloads. The final kernel uses **TF32 Tensor Cores via inline PTX**, asynchronous pipelining, warp-level tiling, and bank-conflict-free shared memory outperforming non-tensor cuBLAS performance on `(4096 x 10240 x 4096)` dimensions.
 
 ---
 
@@ -8,25 +8,25 @@ A progressive, hand-crafted implementation of single-precision matrix multiplica
 
 Each stage is preserved in source as a stepping stone. The progression below reflects both the development order and the underlying reasoning.
 
-### Stage 0 &ndash; Naive Kernel
+### Stage 0: Naive Kernel
 Each thread computes one element of C by iterating over the full K dimension in global memory. Simple but memory-bound: two global loads per FMA, no reuse.
 
-### Stage 1 &ndash; Shared Memory Tiling
+### Stage 1: Shared Memory Tiling
 Tiles of A and B are loaded cooperatively into shared memory, reducing global memory traffic by a factor of `TILESIZE`. The kernel is now shared-memory-bound rather than global-memory-bound.
 
-### Stage 2 &ndash; Double Buffering
+### Stage 2: Double Buffering
 While computing on the current tile, the next tile is prefetched into a second shared memory buffer. This overlaps computation and memory access, hiding shared memory latency when the kernel is still memory-bound.
 
-### Stage 3 &ndash; Register Tiling
+### Stage 3: Register Tiling
 Each thread computes an `RM x RN` sub-tile of C, holding intermediate results in registers. Reduces shared memory load instructions by a factor of `RM x RN`, making the kernel compute-bound.
 
-### Stage 4 &ndash; Vectorized Loads (`float4`)
+### Stage 4: Vectorized Loads (`float4`)
 Global and shared memory loads are widened to 128-bit (`float4` / `LDS.128`). Improves memory throughput and enables better coalescing. Combined with register tiling for a double-buffered register prefetch loop.
 
-### Stage 5 &ndash; Warp Tiling
+### Stage 5: Warp Tiling
 The thread block tile is decomposed into warp tiles (`WM x WN`), with each warp responsible for a contiguous region of the output. This improves data locality within the warp and aligns memory access patterns with hardware warp scheduling.
 
-### Stage 6 &ndash; TF32 Tensor Cores + `cp.async` Pipeline (Final Kernel)
+### Stage 6: TF32 Tensor Cores + `cp.async` Pipeline (Final Kernel)
 The production kernel: `matrixMulHIP_tiled_db_reg_warp_tc`.
 
 Key techniques:
