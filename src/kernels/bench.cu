@@ -54,7 +54,7 @@ void run_benchmarks(
         BENCHMARK_OPT5_KERNEL(Tiled_DB_Reg_Vec_Warp, float, 
             kTileSize, // k-tile size
             // block size (x, y)
-            OPT5_BM / (OPT5_RM * OPT5_WM), OPT3_BN / (OPT5_RN * OPT5_WN)
+            OPT5_NUM_WARP_TILES * 32, 1
         );
     }
 }

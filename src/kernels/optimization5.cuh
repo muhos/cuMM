@@ -31,8 +31,8 @@ constexpr int OPT5_WARP_STEP_N = OPT5_NUM_THREADS_N * OPT5_RN;    // cols covere
 constexpr int OPT5_WARP_STEP_N_VEC = OPT5_WARP_STEP_N / OPT5_VEC;   // float4 columns per warp-step
 static_assert(OPT5_WM % OPT5_WARP_STEP_M == 0);
 static_assert(OPT5_WN % OPT5_WARP_STEP_N == 0);
-constexpr int OPT5_OPT5_WARP_M_ITERS = OPT5_WM / OPT5_WARP_STEP_M;
-constexpr int OPT5_OPT5_WARP_N_ITERS = OPT5_WN / OPT5_WARP_STEP_N;
+constexpr int OPT5_WARP_M_ITERS = OPT5_WM / OPT5_WARP_STEP_M;
+constexpr int OPT5_WARP_N_ITERS = OPT5_WN / OPT5_WARP_STEP_N;
 
 template <typename T, int TILESIZE>
 __global__ void matrixMul_tiled_db_reg_warp(const T *A, const T *B, T *C) {
@@ -58,7 +58,7 @@ __global__ void matrixMul_tiled_db_reg_warp(const T *A, const T *B, T *C) {
 
     // Shared memory tiles for A and B with double buffering.
     constexpr int TILESIZE_VEC = TILESIZE / OPT5_VEC;
-    __shared__ float4 tileA[2][TILESIZE_VEC * OPT5_BM];      // Transposed: [k4][row]
+    __shared__ float4 tileA[2][TILESIZE_VEC * OPT5_BM];      // Transposed: [kvec][row]
     __shared__ float4 tileB[2][TILESIZE * OPT5_BN_VEC];   // [k][col_vec]
 
     #define VECTORIZE(ARRAY) reinterpret_cast<float4*>(&(ARRAY))
@@ -70,15 +70,15 @@ __global__ void matrixMul_tiled_db_reg_warp(const T *A, const T *B, T *C) {
         /* Loads OPT5_BM x TILESIZE into shared memory (transposed into float4) */ \
         for (int i = tx; i < TILESIZE_VEC * OPT5_BM; i += blockDim.x) { \
             int shared_row = i % OPT5_BM; \
-            int k4 = i / OPT5_BM; \
-            tileA[BUFF][k4 * (OPT5_BM + PAD_A) + shared_row] = \
-                *VECTORIZE_const(A[(by_offset + shared_row) * N + ((TILE) * TILESIZE + k4 * OPT5_VEC)]); \
+            int kvec = i / OPT5_BM; \
+            tileA[BUFF][kvec * OPT5_BM + shared_row] = \
+                *VECTORIZE_const(A[(by_offset + shared_row) * N + ((TILE) * TILESIZE + kvec * OPT5_VEC)]); \
         } \
         /* Loads TILESIZE x OPT5_BN into shared memory */ \
         for (int i = tx; i < TILESIZE * OPT5_BN_VEC; i += blockDim.x) { \
             int k = i / OPT5_BN_VEC; \
             int shared_col_vec = i % OPT5_BN_VEC; \
-            tileB[BUFF][k * (OPT5_BN_VEC + PAD_B) + shared_col_vec] = \
+            tileB[BUFF][k * OPT5_BN_VEC + shared_col_vec] = \
                 *VECTORIZE_const(B[((TILE) * TILESIZE + k) * M + (bx_offset + shared_col_vec * OPT5_VEC)]); \
         } \
     }
@@ -125,18 +125,18 @@ __global__ void matrixMul_tiled_db_reg_warp(const T *A, const T *B, T *C) {
                 #pragma unroll
                 for (int w_row = 0; w_row < OPT5_WARP_M_ITERS; ++w_row) {
 
-                    int shared_row_offset = warp_offset_row + w_row * WARP_STEP_M + lane_offset_row;
+                    int shared_row_offset = warp_offset_row + w_row * OPT5_WARP_STEP_M + lane_offset_row;
 
                     #pragma unroll
                     for (int w_col = 0; w_col < OPT5_WARP_N_ITERS; ++w_col) {
 
-                        int shared_col_offset4 = warp_offset_col_vec + w_col * WARP_STEP_N_VEC + lane_offset_col_vec;
+                        int shared_col_offset4 = warp_offset_col_vec + w_col * OPT5_WARP_STEP_N_VEC + lane_offset_col_vec;
 
                         #undef PREFETCH_B_REGS
                         #define PREFETCH_B_REGS(TILE, BUFF) \
                         { \
                             for (int j = 0; j < OPT5_RN_VEC; ++j) { \
-                                bReg[(BUFF)][j] = tileB[buff][(TILE) * (BN_VEC + PAD_B) + (shared_col_offset4 + j)]; \
+                                bReg[(BUFF)][j] = tileB[buff][(TILE) * OPT5_BN_VEC + (shared_col_offset4 + j)]; \
                             } \
                         }
 
@@ -144,19 +144,19 @@ __global__ void matrixMul_tiled_db_reg_warp(const T *A, const T *B, T *C) {
                         PREFETCH_B_REGS(0, 0);
 
                         #pragma unroll
-                        for (int k4 = 0; k4 < TILESIZE_VEC; k4++) {
+                        for (int kvec = 0; kvec < TILESIZE_VEC; kvec++) {
 
                             // Load A reg-tile.
                             {  
                                 #pragma unroll
                                 for (int i = 0; i < OPT5_RM; ++i) {
-                                    aReg[i] = tileA[buff][k4 * (OPT5_BM + PAD_A) + (shared_row_offset + i)];
+                                    aReg[i] = tileA[buff][kvec * OPT5_BM + (shared_row_offset + i)];
                                 }
                             }
 
                             #pragma unroll
                             for (int v = 0; v < 4; ++v) {
-                                int k = k4 * 4 + v;
+                                int k = kvec * 4 + v;
                                 int bBuff = k & 1;
 
                                 if (k + 1 < TILESIZE) {
@@ -178,7 +178,7 @@ __global__ void matrixMul_tiled_db_reg_warp(const T *A, const T *B, T *C) {
                                     }
                                 }
                             }
-                        } // k4
+                        } // kvec
                     } // w_col
                 } // w_row
 
@@ -188,16 +188,16 @@ __global__ void matrixMul_tiled_db_reg_warp(const T *A, const T *B, T *C) {
 
             #pragma unroll
             for (int w_row = 0; w_row < OPT5_WARP_M_ITERS; ++w_row) {
-                int row_offset = by_offset + warp_offset_row + w_row * WARP_STEP_M + lane_offset_row;
+                int row_offset = by_offset + warp_offset_row + w_row * OPT5_WARP_STEP_M + lane_offset_row;
                 #pragma unroll
                 for (int w_col = 0; w_col < OPT5_WARP_N_ITERS; ++w_col) {
-                    int col_offset = bx_offset + warp_offset_col + w_col * WARP_STEP_N + lane_offset_col;
+                    int col_offset = bx_offset + warp_offset_col + w_col * OPT5_WARP_STEP_N + lane_offset_col;
                     #pragma unroll
                     for (int i = 0; i < OPT5_RM; ++i) {
                         int row = row_offset + i;
                         #pragma unroll
                         for (int j = 0; j < OPT5_RN_VEC; ++j) {
-                            int col = col_offset + j * VEC;
+                            int col = col_offset + j * OPT5_VEC;
                             if (row < M && col + 3 < M) {
                                 *VECTORIZE(C[row * M + col]) = value[w_row][w_col][i][j];
                             }

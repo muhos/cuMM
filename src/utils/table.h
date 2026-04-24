@@ -4,7 +4,7 @@
 #include <iomanip>
 #include <string>
 
-#define RULER_WIDTH 110
+#define RULER_WIDTH 114
 
 inline void table_ruler(const int& width, const char& ch = '-', const bool& newline = true) {
     for (int i = 0; i < width; ++i) std::cout << ch;
@@ -22,7 +22,7 @@ inline void header(const char* title) {
 }
 
 // Constants for maximum lengths of table columns.
-#define KERNEL_NAME_MAX_LEN 20
+#define KERNEL_NAME_MAX_LEN 22
 #define MATRIX_HEIGHT_MAX_LEN 6
 #define MATRIX_WIDTH_MAX_LEN 6
 #define TILE_SIZE_MAX_LEN 10
