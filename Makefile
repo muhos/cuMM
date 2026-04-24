@@ -60,7 +60,7 @@ $(PTX_DIR)/%.ptx: src/%.cu
 	$(NVCC) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -ptx -o $@ $<
 
 clean:
-	rm -f $(BINARY)
+	rm -f $(BINARY) src/*.o 
 	rm -rf $(PTX_DIR)
 
 .PHONY: all clean
