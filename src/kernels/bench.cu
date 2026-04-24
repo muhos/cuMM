@@ -5,6 +5,7 @@
 #include "optimization3.cuh"
 #include "optimization4.cuh"
 #include "optimization5.cuh"
+#include "optimization6.cuh"
 
 void run_benchmarks(
     float* hA, 
@@ -57,4 +58,12 @@ void run_benchmarks(
             OPT5_NUM_WARP_TILES * 32, 1
         );
     }
+    // TF32 version has MMA_K of 8, so we only benchmark with k-tile size of 8.
+    BENCHMARK_OPT6_KERNEL(Tiled_DB_Reg_Vec_Warp_TC, float,
+        MMA_K, // k-tile size
+        // block size (x, y)
+        OPT5_NUM_WARP_TILES * 32, 1
+    );
+
+    table_ruler(RULER_WIDTH, '-', true);
 }

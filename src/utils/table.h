@@ -22,7 +22,7 @@ inline void header(const char* title) {
 }
 
 // Constants for maximum lengths of table columns.
-#define KERNEL_NAME_MAX_LEN 22
+#define KERNEL_NAME_MAX_LEN 24
 #define MATRIX_HEIGHT_MAX_LEN 6
 #define MATRIX_WIDTH_MAX_LEN 6
 #define TILE_SIZE_MAX_LEN 10
