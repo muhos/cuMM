@@ -12,13 +12,13 @@
 #include <random>
 
 // Error and correctness handling.
-#include "check.h"
+#include "utils/check.h"
 
 // For GPU timer (based on events).
-#include "timer.h"
+#include "utils/timer.h"
 
 // For performance table formatting.
-#include "table.h"
+#include "utils/table.h"
 
 #define M 4096  // Number of rows in Matrix A and C
 #define N 10240 // Number of columns in Matrix B and C
