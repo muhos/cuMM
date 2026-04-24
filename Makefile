@@ -15,42 +15,53 @@ NVCC := $(CUDA_PATH)/bin/nvcc -ccbin $(CXX)
 
 RELOC     := -dc
 CCFLAGS   := -std=c++20 -fdiagnostics-show-option
-NVCCFLAGS := -m64 -std=c++20 -lineinfo -Xptxas -v #-maxrregcount=62 #-ptx 
+NVCCFLAGS := -m64 -std=c++20 -lineinfo
 
-# Common includes 
 INCLUDES  := -I../../common/inc
-EXTRALIB  :=
+EXTRALIB  := -lcublas
 
 BINARY := cuMM
 
-# debug build flags
 ifeq ($(debug),1)
       NVCCFLAGS += -g -G -DDEBUG
-else  ifeq ($(assert),1)
+else ifeq ($(assert),1)
       NVCCFLAGS += -O3
 else
-      NVCCFLAGS += -O3 -DNDEBUG -lcublas
+      NVCCFLAGS += -O3 -DNDEBUG
 endif
 
-# combine all flags
-ALL_CCFLAGS :=
-ALL_CCFLAGS += $(NVCCFLAGS)
-ALL_CCFLAGS += $(addprefix -Xcompiler ,$(CCFLAGS))
+ifdef reg
+      NVCCFLAGS += -maxrregcount=$(reg)
+endif
 
-ALL_LDFLAGS :=
-ALL_LDFLAGS += $(ALL_CCFLAGS)
-ALL_LDFLAGS += $(addprefix -Xlinker ,$(LDFLAGS))
+ifeq ($(count),1)
+      NVCCFLAGS += -Xptxas -v --resource-usage
+endif
 
-# gencode arguments
+ALL_CCFLAGS := $(NVCCFLAGS) $(addprefix -Xcompiler ,$(CCFLAGS))
+ALL_LDFLAGS := $(ALL_CCFLAGS) $(addprefix -Xlinker ,$(LDFLAGS)) $(EXTRALIB)
 
 GENCODE_FLAGS := -arch=native
 
+PTX_DIR      := ptx
+SRC_CU_FILES := $(shell find src -name '*.cu')
+PTX_FILES    := $(patsubst src/%.cu,$(PTX_DIR)/%.ptx,$(SRC_CU_FILES))
+
+ifeq ($(ptx),1)
+all: $(PTX_FILES)
+else
 all: $(BINARY)
+endif
 
 $(BINARY): src/$(BINARY).cu
 	$(NVCC) $(ALL_LDFLAGS) $(GENCODE_FLAGS) -o $@ $<
 
+$(PTX_DIR)/%.ptx: src/%.cu
+	@mkdir -p $(dir $@)
+	$(NVCC) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -ptx -o $@ $<
+
 clean:
 	rm -f $(BINARY)
+	rm -rf $(PTX_DIR)
 
 .PHONY: all clean

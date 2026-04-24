@@ -23,13 +23,6 @@
 #define M 4096  // Number of rows in Matrix A and C
 #define N 10240 // Number of columns in Matrix B and C
 
-/**
- * Kernel to perform matrix multiplication C = A × B
- * A is of size M x N, B is N x M, and C is M x M
- * Each thread computes one element of matrix C.
- */
-__global__ 
-void matrixMul(float *A, float *B, float *C);
 
 /**
  * Optimization 0: Shared Memory Tiling
@@ -119,3 +112,21 @@ constexpr int OPT4_WARP_N_ITERS = OPT4_WN / OPT4_WARP_STEP_N;
 template <typename T, int TILESIZE>
 __global__ 
 void matrixMul_tiled_db_reg_vec_warp(const T *A, const T *B, T *C);
+
+
+#define launchKernel(kernelName, numBlocks, numThreads, memPerBlock, streamId, ...) \
+  do {                                                                                             \
+    kernelName<<<numBlocks, numThreads, memPerBlock, streamId>>>(__VA_ARGS__);                     \
+  } while (0)
+
+/**
+ * Macro to measure elapsed time between two events.
+ * Returns time in milliseconds.
+ */
+#define MeasureTime(ELAPSED, TIMER, KERNEL) \
+do { \
+    TIMER.start(); \
+    KERNEL; \
+    TIMER.stop(); \
+    ELAPSED = TIMER.elapsed(); \
+} while (0)
