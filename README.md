@@ -111,6 +111,7 @@ Input file format: `M*N` elements of A followed by `N*M` elements of B, whitespa
 
 Benchmarked on **NVIDIA RTX 4090** (82.6 TFLOPS TF32 peak), matrix size 4096 x 10240 x 4096.
 
+```
 ------[ Performance Evaluation ]==================================================================================
  Kernel (float)           | K-Tile | Shared Mem | Block Size | Grid Size  |  Time (ms) | TFLOPS | Check 
 ------------------------------------------------------------------------------------------------------------------
@@ -130,6 +131,7 @@ Benchmarked on **NVIDIA RTX 4090** (82.6 TFLOPS TF32 peak), matrix size 4096 x 1
  cuBLAS-SGEMM             |   n/a |         na | na         | na         |       5.56 |  61.79 | PASSED
  cuBLAS-Tensor            |   n/a |         na | na         | na         |       4.61 |  74.58 | PASSED
 ------------------------------------------------------------------------------------------------------------------
+```
 
 > **Note:** Run `./cuMM` to populate the table with results on your hardware. The final Tensor Core kernel (`Tiled-Reg-Warp-TC`) is benchmarked alongside cuBLAS SGEMM and cuBLAS TF32 Tensor mode for direct comparison.
 
