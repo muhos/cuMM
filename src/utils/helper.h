@@ -41,7 +41,6 @@ do { \
         case 4:  LAUNCH_TEMPLATE_KERNEL(KERNEL, NAME, TYPE, 4); break; \
         case 8:  LAUNCH_TEMPLATE_KERNEL(KERNEL, NAME, TYPE, 8); break; \
         case 16:  LAUNCH_TEMPLATE_KERNEL(KERNEL, NAME, TYPE, 16); break; \
-        case 32:  LAUNCH_TEMPLATE_KERNEL(KERNEL, NAME, TYPE, 32); break; \
     } \
     checkErrors(cudaMemcpy(hC, dC, sizeC, cudaMemcpyDeviceToHost), "cudaMemcpy C"); \
 }

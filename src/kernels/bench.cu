@@ -22,7 +22,7 @@ void run_benchmarks(
     const int sizeC = dimC * sizeof(float);
     table_header("Performance Evaluation");
     BENCHMARK_BASIC_KERNEL(Basic);
-    for (int kTileSize : {16, 32}) {
+    for (int kTileSize : {8, 16}) {
         BENCHMARK_OPT1_KERNEL(Tiled, float, 
             // k-tile size
             kTileSize, 
@@ -30,7 +30,7 @@ void run_benchmarks(
             kTileSize, kTileSize 
         );
     }
-    for (int kTileSize : {16, 32}) {
+    for (int kTileSize : {8, 16}) {
         BENCHMARK_OPT2_KERNEL(Tiled_DB, float, 
             // k-tile size
             kTileSize,
