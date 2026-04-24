@@ -1,4 +1,5 @@
 #include "kernels/basic.cuh"
+#include "kernels/shared.cuh"
 
 int main(int argc, char* argv[]) {
 
@@ -111,8 +112,11 @@ int main(int argc, char* argv[]) {
 
     table_header("Performance Evaluation");
 
-    // Benchmarking basic kernel.
     BENCHMARK_BASIC_KERNEL(Basic);
+
+    for (int tileSize = 16; tileSize <= 32; tileSize *= 2) {
+        BENCHMARK_OPT1_KERNEL(Tiled, float, tileSize, tileSize, tileSize);
+    }
 
     std::cout << "Cleaning up..";
 

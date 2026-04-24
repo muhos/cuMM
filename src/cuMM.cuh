@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <cublas_v2.h>
@@ -26,18 +28,6 @@
 #define M 4096  // Number of rows in Matrix A and C
 #define N 10240 // Number of columns in Matrix B and C
 
-
-/**
- * Optimization 0: Shared Memory Tiling
- * ------------------------------------
- * Load tiles of A and B into shared memory to reduce global memory accesses.
- * matrixMulHIP kernel is memory-bound due to 2 global loads vs 1 FMA per iteration.
- * By using shared memory, we reduce global memory instructions and turn them into
- * shared memory instructions which have lower latency but still shared memory-bound.
- */
-template <typename T, int TILESIZE> 
-__global__ 
-void matrixMul_tiled(const T *A, const T *B, T *C);
 
 /**
  * Optimization 1: Double buffering of shared memory tiles

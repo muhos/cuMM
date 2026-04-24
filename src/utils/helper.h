@@ -19,3 +19,21 @@ do { \
     TIMER.stop(); \
     ELAPSED = TIMER.elapsed(); \
 } while (0)
+
+#define LAUNCH_TEMPLATE_KERNEL(KERNEL, NAME, TYPE, TILE) \
+{ \
+    checkErrors(cudaMemset(dC, 0, sizeC), "cudaMemset C"); \
+    MeasureTime(NAME##_elapsed, timer, launchKernel((KERNEL<TYPE, TILE>), \
+        NAME##Grid, NAME##Block, NAME##smemSize, 0, (TYPE*)dA, (TYPE*)dB, dC)); \
+}
+
+#define GENERATE_KERNEL_CONFIG(KERNEL, NAME, TYPE, TILE) \
+{ \
+    switch (TILE) { \
+        case 4:  LAUNCH_TEMPLATE_KERNEL(KERNEL, NAME, TYPE, 4); break; \
+        case 8:  LAUNCH_TEMPLATE_KERNEL(KERNEL, NAME, TYPE, 8); break; \
+        case 16:  LAUNCH_TEMPLATE_KERNEL(KERNEL, NAME, TYPE, 16); break; \
+        case 32:  LAUNCH_TEMPLATE_KERNEL(KERNEL, NAME, TYPE, 32); break; \
+    } \
+    checkErrors(cudaMemcpy(hC, dC, sizeC, cudaMemcpyDeviceToHost), "cudaMemcpy C"); \
+}
