@@ -4,6 +4,7 @@
 #include "optimization2.cuh"
 #include "optimization3.cuh"
 #include "optimization4.cuh"
+#include "optimization5.cuh"
 
 void run_benchmarks(
     float* hA, 
@@ -46,7 +47,14 @@ void run_benchmarks(
         BENCHMARK_OPT4_KERNEL(Tiled_DB_Reg_Vec, float, 
             kTileSize, // k-tile size
             // block size (x, y)
-            OPT3_BM / OPT3_REG_TILESIZE, OPT3_BN / OPT3_REG_TILESIZE
+            OPT4_BM / OPT4_REG_TILESIZE, OPT4_BN / OPT4_REG_TILESIZE
+        );
+    }
+    for (int kTileSize : {8, 16}) {
+        BENCHMARK_OPT5_KERNEL(Tiled_DB_Reg_Vec_Warp, float, 
+            kTileSize, // k-tile size
+            // block size (x, y)
+            OPT5_BM / (OPT5_RM * OPT5_WM), OPT3_BN / (OPT5_RN * OPT5_WN)
         );
     }
 }
