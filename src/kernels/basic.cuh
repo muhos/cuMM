@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../cuMM.cuh"
+#include "../global.cuh"
 
 /**
  * Kernel to perform matrix multiplication C = A × B

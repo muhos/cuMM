@@ -1,5 +1,6 @@
-#include "kernels/basic.cuh"
-#include "kernels/shared.cuh"
+#include "utils/input.h"
+#include "kernels/bench.cuh"
+#include "global.cuh"
 
 int main(int argc, char* argv[]) {
 
@@ -9,16 +10,7 @@ int main(int argc, char* argv[]) {
     // If 1 argument is provided, the first is output file and input matrices are randomized.
     // If no arguments are provided, input matrices are randomized but result is not written to output file.
     if (argc > 3) {
-        std::cerr << "Usage: " << argv[0] << " [<input_file>] [<output_file>]\n";
-        std::cerr << "If input file is not provided, input matrices are randomized.\n";
-        std::cerr << "If output file is not provided, result will not be written.\n";
-        std::cerr << "Otherwise provide an input file with this format:\n";
-        std::cerr << "- Contains (M * N) elements of matrix A (row-major order)\n";
-        std::cerr << "- Followed by (N * M) elements of matrix B (row-major order)\n";
-        std::cerr << "- All values are whitespace-separated (space or newline)\n";
-        std::cerr << "\nExample for small matrices (M=2, N=3):\n";
-        std::cerr << " 1 2 3 4 5 6 # A: 2x3 matrix (flattened)\n";
-        std::cerr << " 7 8 9 10 11 12 # B: 3x2 matrix (flattened)\n";
+        printUsage(argv[0]);
         return 1;
     }
 
@@ -50,41 +42,7 @@ int main(int argc, char* argv[]) {
 
     // Read matrices A and B from file iff an input file is provided
     // If file does not exist std::ifstream or std::ofstream will fail.
-    if (argc == 3) {
-        const char* inputFileName = argv[1];
-        std::ifstream inputFile(inputFileName);
-        if (!inputFile) {
-            std::cerr << "Failed to open input file." << std::endl;
-            return 1;
-        }
-
-        for (int i = 0; i < dimA; ++i) {
-            if (!(inputFile >> hA[i])) {
-                std::cerr << "Error reading matrix A from file." << std::endl;
-                return 1;
-            }
-        }
-
-        for (int i = 0; i < dimB; ++i) {
-            if (!(inputFile >> hB[i])) {
-                std::cerr << "Error reading matrix B from file." << std::endl;
-                return 1;
-            }
-        }
-
-        inputFile.close();
-    }
-    else {
-        std::cout << "Generating random input matrices A and B..";
-        constexpr int SEED = 2025;
-        std::mt19937 generator(SEED);
-        const int RANGE = M;
-        for (int i = 0; i < dimA; ++i) {
-            hA[i] = static_cast<float>(generator() % RANGE);
-            hB[i] = static_cast<float>(generator() % RANGE);
-        }
-        std::cout << " done." << std::endl;
-    }
+    if (initializeInput(hA, hB, dimA, dimB, argc, argv)) return EXIT_FAILURE;
 
     const size_t memBytes = sizeA + sizeB + sizeC;
 
@@ -110,13 +68,7 @@ int main(int argc, char* argv[]) {
 
     std::cout << " done." << std::endl;
 
-    table_header("Performance Evaluation");
-
-    BENCHMARK_BASIC_KERNEL(Basic);
-
-    for (int tileSize = 16; tileSize <= 32; tileSize *= 2) {
-        BENCHMARK_OPT1_KERNEL(Tiled, float, tileSize, tileSize, tileSize);
-    }
+    run_benchmarks(hA, hB, hC, hC_basic, dA, dB, dC, dimC, timer);
 
     std::cout << "Cleaning up..";
 

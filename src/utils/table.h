@@ -25,8 +25,8 @@ inline void header(const char* title) {
 #define KERNEL_NAME_MAX_LEN 20
 #define MATRIX_HEIGHT_MAX_LEN 6
 #define MATRIX_WIDTH_MAX_LEN 6
-#define TILE_SIZE_MAX_LEN 9
-#define SHARED_SIZE_MAX_LEN 8
+#define TILE_SIZE_MAX_LEN 10
+#define SHARED_SIZE_MAX_LEN 10
 #define BLOCK_SIZE_MAX_LEN 10
 #define TIME_MS_MAX_LEN 10
 #define GFLOPS_MAX_LEN 6
@@ -38,7 +38,7 @@ inline void table_header(const char* title) {
     std::cout   << " " << std::setw(KERNEL_NAME_MAX_LEN) << std::left << "Kernel (float)" << " | "
                 << std::setw(MATRIX_HEIGHT_MAX_LEN) << std::right << "M" << " | "
                 << std::setw(MATRIX_WIDTH_MAX_LEN) << std::right << "N" << " | "
-                << std::setw(TILE_SIZE_MAX_LEN) << std::right << "Tile Size" << " | "
+                << std::setw(TILE_SIZE_MAX_LEN) << std::right << "K-Tile Size" << " | "
                 << std::setw(SHARED_SIZE_MAX_LEN) << std::right << "Shared Mem" << " | "
                 << std::setw(BLOCK_SIZE_MAX_LEN) << std::left << "Block Size" << " | "
                 << std::setw(TIME_MS_MAX_LEN) << std::right << "Time (ms)" << " | "

@@ -5,6 +5,8 @@
 #include <device_launch_parameters.h>
 #include <iostream>
 
+constexpr int NRUNS = 10;
+
 #define ROUNDUP(x, y) (((x) + (y) - 1) / (y))
 
 #define launchKernel(kernelName, numBlocks, numThreads, memPerBlock, streamId, ...) \
@@ -14,17 +16,23 @@ do {                                                                            
 
 #define MeasureTime(ELAPSED, TIMER, KERNEL) \
 do { \
-    TIMER.start(); \
-    KERNEL; \
-    TIMER.stop(); \
-    ELAPSED = TIMER.elapsed(); \
+    KERNEL; /* warm up */ \
+    float TOTAL = 0.0; \
+    for (int i = 0; i < NRUNS; ++i) { \
+        TIMER.start(); \
+        KERNEL; \
+        TIMER.stop(); \
+        TOTAL += TIMER.elapsed(); \
+    } \
+    ELAPSED = TOTAL / float(NRUNS); \
 } while (0)
 
 #define LAUNCH_TEMPLATE_KERNEL(KERNEL, NAME, TYPE, TILE) \
 { \
     checkErrors(cudaMemset(dC, 0, sizeC), "cudaMemset C"); \
-    MeasureTime(NAME##_elapsed, timer, launchKernel((KERNEL<TYPE, TILE>), \
-        NAME##Grid, NAME##Block, NAME##smemSize, 0, (TYPE*)dA, (TYPE*)dB, dC)); \
+    MeasureTime(NAME##_elapsed, timer, \
+        launchKernel((KERNEL<TYPE, TILE>), \
+            NAME##Grid, NAME##Block, NAME##dynSmemSize, 0, (TYPE*)dA, (TYPE*)dB, dC)); \
 }
 
 #define GENERATE_KERNEL_CONFIG(KERNEL, NAME, TYPE, TILE) \

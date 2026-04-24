@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../cuMM.cuh"
+#include "../global.cuh"
 
 /**
- * Optimization 0: Shared Memory Tiling
+ * Optimization 1: Shared Memory Tiling
  * ------------------------------------
  * Load tiles of A and B into shared memory to reduce global memory accesses.
  * matrixMulHIP kernel is memory-bound due to 2 global loads vs 1 FMA per iteration.
@@ -89,10 +89,14 @@ do { \
         break; \
     } \
     dim3 NAME##Grid(ROUNDUP(M, NAME##Block.x), ROUNDUP(M, NAME##Block.y)); \
-    const int NAME##smemSize = 2 * TILE * TILE * sizeof(TYPE); \
+    const int NAME##dynSmemSize = 0; \
     float NAME##_elapsed = 0.0f; \
     GENERATE_KERNEL_CONFIG(matrixMul_tiled, NAME, TYPE, TILE) \
-    table_row(#NAME, M, N, TILE, NAME##smemSize, NAME##Block, NAME##_elapsed, \
+    const int NAME##smemSize = 2 * TILE * TILE * sizeof(TYPE); \
+    std::string KERNELNAME = #NAME; \
+    const size_t pos = KERNELNAME.find("_"); \
+    if (pos != std::string::npos) KERNELNAME.replace(pos, 1, "-"); \
+    table_row(KERNELNAME.c_str(), M, N, TILE, NAME##smemSize, NAME##Block, NAME##_elapsed, \
         checkMulResults(hC, hC_basic, dimC) ? "PASSED" : "FAILED"); \
 } while (0);
 

@@ -1,17 +1,7 @@
 #pragma once
 
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
-#include <cublas_v2.h>
-#include <cuda/barrier>
-#include <cuda/pipeline>
 #include <iostream>
-#include <fstream>
-#include <sstream>
 #include <cstdio>
-
-// For random number generation.
-#include <random>
 
 // Error and correctness handling.
 #include "utils/check.h"
@@ -25,32 +15,7 @@
 // For helper macros/functions.
 #include "utils/helper.h"
 
-#define M 4096  // Number of rows in Matrix A and C
-#define N 10240 // Number of columns in Matrix B and C
 
-
-/**
- * Optimization 1: Double buffering of shared memory tiles
- * -------------------------------------------------------
- * While computing on one tile, prefetch the next tile into another buffer.
- * This helps hide global memory latency if the kernel is memory-bound which
- * is the case matrixMulHIP_tiled. More shared memory load instructions 'ld.shared'
- * are issued in the TILESIZE loop vs 1 FMA instruction.
- */
-template <typename T, int TILESIZE> 
-__global__ 
-void matrixMul_tiled_db(const T *A, const T *B, T *C);
-
-/**
- * Optimization 2: Register Tiling
- * -------------------------------
- * Each thread computes a tile of C elements and stores them in registers.
- * This significantly reduces shared memory loads by a factor of REG_TILESIZE^2.
- * Kernel becomes less memory-bound and more compute-bound.
- */
-#define OPT2_BM 128
-#define OPT2_BN 128
-#define OPT2_REG_TILESIZE 8
 
 template <typename T, int TILESIZE> 
 __global__ 
