@@ -34,7 +34,7 @@ void run_benchmarks(
             kTileSize, kTileSize 
         );
     }
-    for (int kTileSize : {16, 32}) {
+    for (int kTileSize : {8, 16}) {
         BENCHMARK_OPT3_KERNEL(Tiled_DB_Reg, float, 
             kTileSize, // k-tile size
             // block size (x, y)

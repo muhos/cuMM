@@ -47,7 +47,7 @@ void matrixMulHIP_tiled_db_reg(const T *A, const T *B, T *C) {
             for (int i = 0; i < OPT3_REG_TILESIZE; ++i) { /* register-tile column */ \
                 int tReg = tx * OPT3_REG_TILESIZE + i; \
                 int col = bx_offset + tReg; \
-                tileB[(BUFF)][y * OPT3_BM + tReg] = B[((TILE) * TILESIZE + y) * M + col]; \
+                tileB[(BUFF)][y * OPT3_BN + tReg] = B[((TILE) * TILESIZE + y) * M + col]; \
             } \
         } \
     }
@@ -115,7 +115,7 @@ do { \
             NAME##Block.x << ", " << NAME##Block.y << ")" << std::endl; \
         break; \
     } \
-    dim3 NAME##Grid(ROUNDUP(M, NAME##Block.x), ROUNDUP(M, NAME##Block.y)); \
+    dim3 NAME##Grid(ROUNDUP(M, OPT3_BN), ROUNDUP(M, OPT3_BM)); \
     float NAME##_elapsed = 0.0f; \
     const int NAME##dynSmemSize = 0; \
     GENERATE_KERNEL_CONFIG(matrixMulHIP_tiled_db_reg, NAME, TYPE, TILE) \
