@@ -84,7 +84,12 @@ Tested on:
 ## Build
 
 ```bash
-make              # CUDA build (default)
+make                  # release build (O3, NDEBUG)
+make debug=1          # device + host debug symbols, enables DEBUG macro
+make assert=1         # O3 with assertions enabled
+make count=1          # report per-kernel register and shared memory usage
+make reg=<n>          # cap registers per thread (e.g. reg=60)
+make ptx=1            # emit PTX for all .cu files into ptx/ mirroring src/
 ```
 
 ---
