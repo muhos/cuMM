@@ -39,9 +39,9 @@ template <typename T>
 inline bool checkMulResults(
     const T* hC,
     const T* hC_ref,
-    int size,
-    double rtol = 5e-4,
-    double atol = 1e-2
+    const int& size,
+    const double& rtol = 5e-4,
+    const double& atol = 1e-2
 ) {
     for (int idx = 0; idx < size; ++idx) {
         const double x = static_cast<double>(hC[idx]);

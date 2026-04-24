@@ -23,11 +23,10 @@ inline void header(const char* title) {
 
 // Constants for maximum lengths of table columns.
 #define KERNEL_NAME_MAX_LEN 24
-#define MATRIX_HEIGHT_MAX_LEN 6
-#define MATRIX_WIDTH_MAX_LEN 6
-#define TILE_SIZE_MAX_LEN 10
+#define TILE_SIZE_MAX_LEN 5
 #define SHARED_SIZE_MAX_LEN 10
 #define BLOCK_SIZE_MAX_LEN 10
+#define GRID_SIZE_MAX_LEN 10
 #define TIME_MS_MAX_LEN 10
 #define GFLOPS_MAX_LEN 6
 #define CHECK_MAX_LEN 6
@@ -36,11 +35,10 @@ inline void header(const char* title) {
 inline void table_header(const char* title) {
     header(title);
     std::cout   << " " << std::setw(KERNEL_NAME_MAX_LEN) << std::left << "Kernel (float)" << " | "
-                << std::setw(MATRIX_HEIGHT_MAX_LEN) << std::right << "M" << " | "
-                << std::setw(MATRIX_WIDTH_MAX_LEN) << std::right << "N" << " | "
-                << std::setw(TILE_SIZE_MAX_LEN) << std::right << "K-Tile Size" << " | "
+                << std::setw(TILE_SIZE_MAX_LEN) << std::right << "K-Tile" << " | "
                 << std::setw(SHARED_SIZE_MAX_LEN) << std::right << "Shared Mem" << " | "
                 << std::setw(BLOCK_SIZE_MAX_LEN) << std::left << "Block Size" << " | "
+                << std::setw(GRID_SIZE_MAX_LEN) << std::left << "Grid Size" << " | "
                 << std::setw(TIME_MS_MAX_LEN) << std::right << "Time (ms)" << " | "
                 << std::setw(GFLOPS_MAX_LEN) << std::right << "TFLOPS" << " | "
                 << std::setw(CHECK_MAX_LEN) << std::left << "Check" << std::endl;
@@ -53,20 +51,21 @@ inline void table_row(const char* kernel,
                         const int& tile_size, 
                         const int& shared_size,
                         const dim3& block, 
+                        const dim3& grid,
                         const float& time_ms, 
                         const char* check = "na") 
 {
     const std::string blockstr = block.x ? "(" + std::to_string(block.x) + ", " + std::to_string(block.y) + ")" : "na";
+    const std::string gridstr = grid.x ? "(" + std::to_string(grid.x) + ", " + std::to_string(grid.y) + ")" : "na";
     const std::string tile_size_str = tile_size ? std::to_string(tile_size) : "n/a";
     const std::string shared_size_str = shared_size ? std::to_string(shared_size) + " B" : "na";
     // two operations (add + mul).
     const double tflops = (2.0 * M * M * N) / (time_ms * 1e9);
     std::cout   << " " << std::setw(KERNEL_NAME_MAX_LEN) << std::left << kernel << " | "
-                << std::setw(MATRIX_HEIGHT_MAX_LEN) << std::right << M << " | "
-                << std::setw(MATRIX_WIDTH_MAX_LEN) << std::right << N << " | "
                 << std::setw(TILE_SIZE_MAX_LEN) << std::right << tile_size_str << " | "
                 << std::setw(SHARED_SIZE_MAX_LEN) << std::right << shared_size_str << " | "
                 << std::setw(BLOCK_SIZE_MAX_LEN) << std::left << blockstr << " | "
+                << std::setw(GRID_SIZE_MAX_LEN) << std::left << gridstr << " | "
                 << std::setw(TIME_MS_MAX_LEN) << std::right << std::fixed << std::setprecision(2) << time_ms << " | "
                 << std::setw(GFLOPS_MAX_LEN) << std::right << std::fixed << std::setprecision(2) << tflops << " | "
                 << std::setw(CHECK_MAX_LEN) << std::left << check << std::endl;

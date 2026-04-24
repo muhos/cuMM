@@ -1,5 +1,6 @@
 #include "bench.cuh"
 #include "basic.cuh"
+#include "cublas.cuh"
 #include "optimization1.cuh"
 #include "optimization2.cuh"
 #include "optimization3.cuh"
@@ -59,11 +60,43 @@ void run_benchmarks(
         );
     }
     // TF32 version has MMA_K of 8, so we only benchmark with k-tile size of 8.
+    #if defined(TUNE_TF32)
+    float minTime = 1e9;
+    int best_gx = 0, best_gy = 0;
+    for (int by = 64; by <= 128; by += 8) {
+        for (int bx = 128; bx <= 512; bx += 4) {
+            BENCHMARK_OPT6_KERNEL(Tiled_DB_Reg_Vec_Warp_TC, float,
+                MMA_K, // k-tile size
+                // block size (x, y)
+                OPT5_NUM_WARP_TILES * 32, 1,
+                // grid size (x, y)
+                ROUNDUP(M, bx), ROUNDUP(M, by)
+            );
+            if (Tiled_DB_Reg_Vec_Warp_TC_elapsed < minTime) {
+                minTime = Tiled_DB_Reg_Vec_Warp_TC_elapsed;
+                best_gx = ROUNDUP(M, bx);
+                best_gy = ROUNDUP(M, by);
+            }
+        }
+    }
+    std::cout << "Best TF32 kernel configuration: grid size (" << best_gx << ", " << best_gy << ")\n";
+    #else
     BENCHMARK_OPT6_KERNEL(Tiled_DB_Reg_Vec_Warp_TC, float,
-        MMA_K, // k-tile size
-        // block size (x, y)
-        OPT5_NUM_WARP_TILES * 32, 1
-    );
+                MMA_K, // k-tile size
+                // block size (x, y)
+                OPT5_NUM_WARP_TILES * 32, 1,
+                // grid size (x, y)
+                16, 47
+            );
+    #endif
+
+    cublasHandle_t handle;
+    checkCUBLAS(cublasCreate(&handle), "cublasCreate");
+    BENCHMARK_CUBLAS(CUBLAS_DEFAULT, cuBLAS_SGEMM);
+    checkCUBLAS(cublasDestroy(handle), "cublasDestroy");
+    checkCUBLAS(cublasCreate(&handle), "cublasCreate");
+    BENCHMARK_CUBLAS(CUBLAS_TENSOR, cuBLAS_SGEMM_Tensor);
+    checkCUBLAS(cublasDestroy(handle), "cublasDestroy");
 
     table_ruler(RULER_WIDTH, '-', true);
 }

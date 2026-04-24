@@ -217,7 +217,7 @@ do { \
             NAME##Block.x << ", " << NAME##Block.y << ")" << std::endl; \
         break; \
     } \
-    dim3 NAME##Grid(ROUNDUP(M, OPT3_BN), ROUNDUP(M, OPT3_BM)); \
+    dim3 NAME##Grid(ROUNDUP(M, OPT5_BN), ROUNDUP(M, OPT5_BM)); \
     float NAME##_elapsed = 0.0f; \
     const int NAME##dynSmemSize = 0; \
     GENERATE_KERNEL_CONFIG(matrixMul_tiled_db_reg_warp, NAME, TYPE, TILE) \
@@ -225,7 +225,9 @@ do { \
     std::string KERNELNAME = #NAME; \
     const size_t pos = KERNELNAME.find("_"); \
     if (pos != std::string::npos) KERNELNAME.replace(pos, 1, "-"); \
-    table_row(KERNELNAME.c_str(), M, N, TILE, NAME##smemSize, NAME##Block, NAME##_elapsed, \
+    table_row(KERNELNAME.c_str(), M, N, TILE, \
+        NAME##smemSize, NAME##Block, NAME##Grid, \
+        NAME##_elapsed, \
         checkMulResults(hC, hC_basic, dimC) ? "PASSED" : "FAILED"); \
 } while (0);
 

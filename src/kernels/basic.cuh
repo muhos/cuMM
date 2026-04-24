@@ -29,6 +29,6 @@ do { \
     float basic_elapsed = 0.0f; \
     MeasureTime(basic_elapsed, timer, launchKernel(matrixMul, NAME##Grid, NAME##Block, 0, 0, dA, dB, dC)); \
     checkErrors(cudaMemcpy(hC, dC, sizeC, cudaMemcpyDeviceToHost), "cudaMemcpy C"); \
-    table_row(#NAME, M, N, 0, 0, NAME##Block, basic_elapsed, "na"); \
+    table_row(#NAME, M, N, 0, 0, NAME##Block, NAME##Grid, basic_elapsed, "na"); \
     checkErrors(cudaMemcpy(hC_basic, dC, sizeC, cudaMemcpyDeviceToHost), "cudaMemcpy C to C_basic"); \
 } while (0)

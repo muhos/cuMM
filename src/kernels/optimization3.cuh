@@ -123,7 +123,9 @@ do { \
     std::string KERNELNAME = #NAME; \
     const size_t pos = KERNELNAME.find("_"); \
     if (pos != std::string::npos) KERNELNAME.replace(pos, 1, "-"); \
-    table_row(KERNELNAME.c_str(), M, N, TILE, NAME##smemSize, NAME##Block, NAME##_elapsed, \
+        table_row(KERNELNAME.c_str(), M, N, TILE, \
+        NAME##smemSize, NAME##Block, NAME##Grid, \
+        NAME##_elapsed, \
         checkMulResults(hC, hC_basic, dimC) ? "PASSED" : "FAILED"); \
 } while (0);
 
