@@ -37,7 +37,7 @@ endif
 ALL_CCFLAGS := $(NVCCFLAGS) $(addprefix -Xcompiler ,$(CCFLAGS))
 ALL_LDFLAGS := $(ALL_CCFLAGS) $(addprefix -Xlinker ,$(LDFLAGS)) $(EXTRALIB)
 
-GENCODE_FLAGS := -arch=native
+GENCODE_FLAGS := -arch=sm_89
 
 MAINCU  := src/$(BINARY).cu
 ALLCU   := $(sort $(wildcard src/*.cu src/*/*.cu))
