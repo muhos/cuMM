@@ -20,6 +20,9 @@
 // For performance table formatting.
 #include "utils/table.h"
 
+// For helper macros/functions.
+#include "utils/helper.h"
+
 #define M 4096  // Number of rows in Matrix A and C
 #define N 10240 // Number of columns in Matrix B and C
 
@@ -113,20 +116,3 @@ template <typename T, int TILESIZE>
 __global__ 
 void matrixMul_tiled_db_reg_vec_warp(const T *A, const T *B, T *C);
 
-
-#define launchKernel(kernelName, numBlocks, numThreads, memPerBlock, streamId, ...) \
-  do {                                                                                             \
-    kernelName<<<numBlocks, numThreads, memPerBlock, streamId>>>(__VA_ARGS__);                     \
-  } while (0)
-
-/**
- * Macro to measure elapsed time between two events.
- * Returns time in milliseconds.
- */
-#define MeasureTime(ELAPSED, TIMER, KERNEL) \
-do { \
-    TIMER.start(); \
-    KERNEL; \
-    TIMER.stop(); \
-    ELAPSED = TIMER.elapsed(); \
-} while (0)

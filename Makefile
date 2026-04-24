@@ -6,19 +6,14 @@ $(error cannot find CUDA local directory)
 endif
 endif
 
-# device/host compilers (nvcc is the master)
-
 CXX  := g++
 NVCC := $(CUDA_PATH)/bin/nvcc -ccbin $(CXX)
 
-# compiler flags
-
-RELOC     := -dc
 CCFLAGS   := -std=c++20 -fdiagnostics-show-option
 NVCCFLAGS := -m64 -std=c++20 -lineinfo
 
 INCLUDES  := -I../../common/inc
-EXTRALIB  := -lcublas
+EXTRALIB  :=
 
 BINARY := cuMM
 
@@ -28,6 +23,7 @@ else ifeq ($(assert),1)
       NVCCFLAGS += -O3
 else
       NVCCFLAGS += -O3 -DNDEBUG
+      EXTRALIB  += -lcublas
 endif
 
 ifdef reg
@@ -43,9 +39,12 @@ ALL_LDFLAGS := $(ALL_CCFLAGS) $(addprefix -Xlinker ,$(LDFLAGS)) $(EXTRALIB)
 
 GENCODE_FLAGS := -arch=native
 
-PTX_DIR      := ptx
-SRC_CU_FILES := $(shell find src -name '*.cu')
-PTX_FILES    := $(patsubst src/%.cu,$(PTX_DIR)/%.ptx,$(SRC_CU_FILES))
+MAINCU  := src/$(BINARY).cu
+ALLCU   := $(sort $(wildcard src/*.cu src/*/*.cu))
+OTHERCU := $(filter-out $(MAINCU),$(ALLCU))
+
+PTX_DIR   := ptx
+PTX_FILES := $(patsubst src/%.cu,$(PTX_DIR)/%.ptx,$(OTHERCU) $(MAINCU))
 
 ifeq ($(ptx),1)
 all: $(PTX_FILES)
@@ -53,8 +52,8 @@ else
 all: $(BINARY)
 endif
 
-$(BINARY): src/$(BINARY).cu
-	$(NVCC) $(ALL_LDFLAGS) $(GENCODE_FLAGS) -o $@ $<
+$(BINARY): $(OTHERCU) $(MAINCU)
+	$(NVCC) $(ALL_LDFLAGS) $(GENCODE_FLAGS) -o $@ $^
 
 $(PTX_DIR)/%.ptx: src/%.cu
 	@mkdir -p $(dir $@)

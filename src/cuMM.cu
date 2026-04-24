@@ -2,6 +2,8 @@
 
 int main(int argc, char* argv[]) {
 
+    header("cuMM: Fast Matrix Multiplication on GPUs");
+
     // If 2 arguments are provided, the first is input file and second is output file.
     // If 1 argument is provided, the first is output file and input matrices are randomized.
     // If no arguments are provided, input matrices are randomized but result is not written to output file.

@@ -4,9 +4,6 @@
 
 #include "check.h"
 
-/**
- * Simple GPU Timer using cuda events.
- */
 class gpuTimer {
 
 private:

@@ -1,9 +1,5 @@
 #pragma once
 
-/**
-This header file defines functions to handle error checking the correctness of matrix multiplication results.
-*/
-
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
 #include <string>

@@ -1,21 +1,24 @@
 #pragma once
 
-/**
- * This header file defines utilities to print formatted tables for performance results.
- */
-
 #include <iostream>
 #include <iomanip>
 #include <string>
 
 #define RULER_WIDTH 110
 
-#define ROUNDUP(x, y) (((x) + (y) - 1) / (y))
-
-// Function to print a table ruler.
 inline void table_ruler(const int& width, const char& ch = '-', const bool& newline = true) {
     for (int i = 0; i < width; ++i) std::cout << ch;
     if (newline) std::cout << std::endl;
+}
+
+inline void header(const char* title) {
+    const int start_width = 6;
+    table_ruler(start_width, '-', false);
+    const std::string head = "[ " + std::string(title) + " ]";
+    const int width = head.length();
+    std::cout << head;
+    if (RULER_WIDTH >= (width + start_width))
+        table_ruler(RULER_WIDTH - (width + start_width), '=');
 }
 
 // Constants for maximum lengths of table columns.
@@ -31,13 +34,7 @@ inline void table_ruler(const int& width, const char& ch = '-', const bool& newl
 
 // Function to print a table header.
 inline void table_header(const char* title) {
-    const int start_width = 6;
-    table_ruler(start_width, '=', false);
-    const std::string head = "[ " + std::string(title) + " ]";
-    const int width = head.length();
-    std::cout << head;
-    if (RULER_WIDTH >= (width + start_width))
-        table_ruler(RULER_WIDTH - (width + start_width), '=');
+    header(title);
     std::cout   << " " << std::setw(KERNEL_NAME_MAX_LEN) << std::left << "Kernel (float)" << " | "
                 << std::setw(MATRIX_HEIGHT_MAX_LEN) << std::right << "M" << " | "
                 << std::setw(MATRIX_WIDTH_MAX_LEN) << std::right << "N" << " | "
