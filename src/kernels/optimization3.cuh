@@ -15,7 +15,7 @@
 
 template <typename T, int TILESIZE> 
 __global__ 
-void matrixMulHIP_tiled_db_reg(const T *A, const T *B, T *C) {
+void matrixMul_tiled_db_reg(const T *A, const T *B, T *C) {
 
     // Thread indices to access elements within a tile.
     int ty = threadIdx.y;
@@ -118,7 +118,7 @@ do { \
     dim3 NAME##Grid(ROUNDUP(M, OPT3_BN), ROUNDUP(M, OPT3_BM)); \
     float NAME##_elapsed = 0.0f; \
     const int NAME##dynSmemSize = 0; \
-    GENERATE_KERNEL_CONFIG(matrixMulHIP_tiled_db_reg, NAME, TYPE, TILE) \
+    GENERATE_KERNEL_CONFIG(matrixMul_tiled_db_reg, NAME, TYPE, TILE) \
     const int NAME##smemSize = 2 * (OPT3_BM * TILE + OPT3_BN * TILE) * sizeof(TYPE); \
     std::string KERNELNAME = #NAME; \
     const size_t pos = KERNELNAME.find("_"); \
