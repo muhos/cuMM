@@ -92,10 +92,9 @@ void run_benchmarks(
 
     cublasHandle_t handle;
     checkCUBLAS(cublasCreate(&handle), "cublasCreate");
-    BENCHMARK_CUBLAS(CUBLAS_DEFAULT, cuBLAS_SGEMM);
-    checkCUBLAS(cublasDestroy(handle), "cublasDestroy");
-    checkCUBLAS(cublasCreate(&handle), "cublasCreate");
-    BENCHMARK_CUBLAS(CUBLAS_TENSOR, cuBLAS_SGEMM_Tensor);
+    BENCHMARK_CUBLAS(CUBLAS_DEFAULT(handle), cuBLAS_Warmup);
+    BENCHMARK_CUBLAS(CUBLAS_DEFAULT(handle), cuBLAS_SGEMM);
+    BENCHMARK_CUBLAS(CUBLAS_TENSOR(handle), cuBLAS_Tensor);
     checkCUBLAS(cublasDestroy(handle), "cublasDestroy");
 
     table_ruler(RULER_WIDTH, '-', true);

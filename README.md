@@ -27,7 +27,7 @@ Global and shared memory loads are widened to 128-bit (`float4` / `LDS.128`). Im
 The thread block tile is decomposed into warp tiles (`WM x WN`), with each warp responsible for a contiguous region of the output. This improves data locality within the warp and aligns memory access patterns with hardware warp scheduling.
 
 ### Stage 6: TF32 Tensor Cores + `cp.async` Pipeline (Final Kernel)
-The production kernel: `matrixMulHIP_tiled_db_reg_warp_tc`.
+The production kernel: `matrixMul_tiled_db_reg_warp_tc`.
 
 Key techniques:
 
@@ -44,12 +44,27 @@ Key techniques:
 ## Project Structure
 
 ```
-matrixmul/
+cuMM/
 ├── src/
-│   ├── matrixmul.cu   # All kernels + main benchmark driver
-│   ├── check.h        # GPU error checking + correctness validation
-│   ├── timer.h        # GPU event-based timing
-│   └── table.h        # Formatted performance table output
+│   ├── cuMM.cu                  # Main entry point and benchmark driver
+│   ├── global.cuh               # Matrix dimensions and common includes
+│   ├── kernels/
+│   │   ├── basic.cuh            # Stage 0: naive kernel
+│   │   ├── optimization1.cuh    # Stage 1: shared memory tiling
+│   │   ├── optimization2.cuh    # Stage 2: double buffering
+│   │   ├── optimization3.cuh    # Stage 3: register tiling
+│   │   ├── optimization4.cuh    # Stage 4: vectorized loads (float4)
+│   │   ├── optimization5.cuh    # Stage 5: warp tiling
+│   │   ├── optimization6.cuh    # Stage 6: TF32 tensor cores + cp.async
+│   │   ├── cublas.cuh           # cuBLAS SGEMM and TF32 GemmEx benchmarks
+│   │   ├── bench.cuh            # Benchmark runner declaration
+│   │   └── bench.cu             # Benchmark runner implementation
+│   └── utils/
+│       ├── check.h              # GPU error checking + correctness validation
+│       ├── helper.h             # Launch macros
+│       ├── input.h              # Matrix input handling
+│       ├── table.h              # Formatted performance table output
+│       └── timer.h              # GPU event-based timing
 ├── Makefile
 └── README.md
 ```
@@ -77,7 +92,7 @@ make              # CUDA build (default)
 ## Usage
 
 ```bash
-./matrixmul
+./cuMM
 ```
 
 Runs the benchmark on randomized matrices of size **4096 x 10240** (A) and **10240 x 4096** (B), producing a **4096 x 4096** output C. Each kernel is timed using CUDA events and validated against the naive baseline.
@@ -85,7 +100,7 @@ Runs the benchmark on randomized matrices of size **4096 x 10240** (A) and **102
 Optional file I/O:
 
 ```bash
-./matrixmul <input_file> <output_file>
+./cuMM <input_file> <output_file>
 ```
 
 Input file format: `M*N` elements of A followed by `N*M` elements of B, whitespace-separated, row-major.
@@ -96,9 +111,27 @@ Input file format: `M*N` elements of A followed by `N*M` elements of B, whitespa
 
 Benchmarked on **NVIDIA RTX 4090** (82.6 TFLOPS TF32 peak), matrix size 4096 x 10240 x 4096.
 
-TBA
+------[ Performance Evaluation ]==================================================================================
+ Kernel (float)           | K-Tile | Shared Mem | Block Size | Grid Size  |  Time (ms) | TFLOPS | Check 
+------------------------------------------------------------------------------------------------------------------
+ Basic                    |   n/a |         na | (16, 16)   | (256, 256) |      92.24 |   3.72 | na    
+ Tiled                    |    16 |     2048 B | (16, 16)   | (256, 256) |      53.72 |   6.40 | PASSED <-- Stage 1
+ Tiled                    |    32 |     8192 B | (32, 32)   | (128, 128) |      54.73 |   6.28 | PASSED
+ Tiled-DB                 |    16 |     4096 B | (16, 16)   | (256, 256) |      49.52 |   6.94 | PASSED <-- Stage 2
+ Tiled-DB                 |    32 |    16384 B | (32, 32)   | (128, 128) |      50.61 |   6.79 | PASSED
+ Tiled-DB_Reg             |     8 |    16384 B | (16, 16)   | (32, 32)   |       8.43 |  40.77 | PASSED <-- Stage 3
+ Tiled-DB_Reg             |    16 |    32768 B | (16, 16)   | (32, 32)   |       7.91 |  43.42 | PASSED
+ Tiled-DB_Reg_Vec         |     8 |     4096 B | (16, 16)   | (32, 32)   |       8.13 |  42.24 | PASSED <-- Stage 4
+ Tiled-DB_Reg_Vec         |    16 |     8192 B | (16, 16)   | (32, 32)   |       7.55 |  45.48 | PASSED
+ Tiled-DB_Reg_Vec_Warp    |     8 |     4096 B | (256, 1)   | (32, 32)   |       7.89 |  43.53 | PASSED <-- Stage 5
+ Tiled-DB_Reg_Vec_Warp    |    16 |     8192 B | (256, 1)   | (32, 32)   |       8.28 |  41.51 | PASSED
+ Tiled-DB_Reg_Vec_Warp_TC |     8 |    21504 B | (256, 1)   | (16, 47)   |       5.27 |  65.19 | PASSED <-- Stage 6
+ cuBLAS-Warmup            |   n/a |         na | na         | na         |      33.84 |  10.16 | PASSED
+ cuBLAS-SGEMM             |   n/a |         na | na         | na         |       5.56 |  61.79 | PASSED
+ cuBLAS-Tensor            |   n/a |         na | na         | na         |       4.61 |  74.58 | PASSED
+------------------------------------------------------------------------------------------------------------------
 
-> **Note:** Run `./matrixmul` to populate the table with results on your hardware. The final Tensor Core kernel (`Tiled-Reg-Warp-TC`) is benchmarked alongside cuBLAS SGEMM and cuBLAS TF32 Tensor mode for direct comparison.
+> **Note:** Run `./cuMM` to populate the table with results on your hardware. The final Tensor Core kernel (`Tiled-Reg-Warp-TC`) is benchmarked alongside cuBLAS SGEMM and cuBLAS TF32 Tensor mode for direct comparison.
 
 ---
 
