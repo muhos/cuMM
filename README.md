@@ -1,6 +1,6 @@
 # CUDA Matrix Multiplication: From Naive to Tensor Cores
 
-A progressive, hand-crafted implementation of single-precision matrix multiplication (SGEMM) in CUDA C++, built from scratch for efficient state-vector operations and AI-driven workloads. The final kernel uses **TF32 Tensor Cores via inline PTX**, asynchronous pipelining, warp-level tiling, and bank-conflict-free shared memory outperforming non-tensor cuBLAS performance on `(4096 x 10240 x 4096)` dimensions.
+A progressive, hand-crafted implementation of single-precision matrix multiplication (SGEMM) in CUDA C++, built from scratch for efficient state-vector operations and AI-driven workloads. The final kernel uses **TF32 Tensor Cores via inline PTX**, asynchronous pipelining, warp-level tiling, and bank-conflict-free shared memory. It achieves 65.19 TF32 TFLOPS on `(4096 x 10240 x 4096)` matrix dimensions, outperforming cuBLAS SGEMM (61.79 TFLOPS) and reaching 87% of cuBLAS Tensor Core throughput (74.58 TFLOPS).
 
 ---
 
