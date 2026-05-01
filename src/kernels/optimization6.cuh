@@ -100,9 +100,6 @@ __device__ __forceinline__ int SWZ_A(const int& r, const int& k) {
     return k ^ (r & 4);
 }
 
-__device__ __forceinline__ int SWZ_B(const int& c) {
-    return c ^ ((c & 8) >> 2);
-}
 
 #define LDS_F32(out_f, smem_u32) \
   asm volatile("ld.shared.f32 %0, [%1];" : "=f"(out_f) : "r"(smem_u32));
@@ -136,10 +133,10 @@ void matrixMul_tiled_db_reg_warp_tc(const T* __restrict__ A,
     int warp_offset_row = warp_tile_row * WM;       // 0, 32, 64, 96
     int warp_offset_col = warp_tile_col * WN;       // 0, 32
 
-    constexpr int LDB = TILESIZE + 4;               // padding by 4 achieved 0 load bank conflicts for tileB
+    constexpr int LDB_ROW = BN + 8;
 
-    __shared__ float tileA[PIPE_DEPTH][BM * TILESIZE];       // row-major: [row][k]
-    __shared__ float tileB[PIPE_DEPTH][BN * LDB];            // transposed: [col][k] so WMMA can load col-major
+    __shared__ float tileA[PIPE_DEPTH][BM * TILESIZE];
+    __shared__ float tileB[PIPE_DEPTH][TILESIZE * LDB_ROW];
 
     constexpr int TILESIZE4 = TILESIZE / 4;
     constexpr int BN4 = BN / 4;
@@ -163,18 +160,11 @@ void matrixMul_tiled_db_reg_warp_tc(const T* __restrict__ A,
                     unsigned smemA = (unsigned)__cvta_generic_to_shared(&tileA[BUFF][r * TILESIZE + SWZ_A(r, k4)]); 
                     CP_ASYNC_CG(smemA, VECTORIZE_const(A[(by_offset + r) * N + ((TILE) * TILESIZE + k4)]), 16); 
                 }
-                for (int i = tx; i < BN4 * TILESIZE; i += blockDim.x) {
-                    int k = i % TILESIZE;
-                    int c4 = (i / TILESIZE) * VEC; 
-                    const float4& b = *VECTORIZE_const(B[((TILE) * TILESIZE + k) * M + (bx_offset + c4)]); 
-                    unsigned smemB_0 = (unsigned)__cvta_generic_to_shared(&tileB[BUFF][SWZ_B(c4) * LDB + k]); 
-                    unsigned smemB_1 = (unsigned)__cvta_generic_to_shared(&tileB[BUFF][SWZ_B(c4 + 1) * LDB + k]); 
-                    unsigned smemB_2 = (unsigned)__cvta_generic_to_shared(&tileB[BUFF][SWZ_B(c4 + 2) * LDB + k]); 
-                    unsigned smemB_3 = (unsigned)__cvta_generic_to_shared(&tileB[BUFF][SWZ_B(c4 + 3) * LDB + k]); 
-                    CP_ASYNC_CA(smemB_0, &b.x, 4); 
-                    CP_ASYNC_CA(smemB_1, &b.y, 4); 
-                    CP_ASYNC_CA(smemB_2, &b.z, 4); 
-                    CP_ASYNC_CA(smemB_3, &b.w, 4); 
+                for (int i = tx; i < TILESIZE * BN4; i += blockDim.x) {
+                    int k  = i / BN4;
+                    int c4 = (i % BN4) * VEC;
+                    unsigned smemB = (unsigned)__cvta_generic_to_shared(&tileB[BUFF][k * LDB_ROW + c4]);
+                    CP_ASYNC_CA(smemB, VECTORIZE_const(B[((TILE) * TILESIZE + k) * M + (bx_offset + c4)]), 16);
                 }
             };
 
@@ -243,13 +233,11 @@ void matrixMul_tiled_db_reg_warp_tc(const T* __restrict__ A,
                 {
                     int bc0 = warp_offset_col + lane_row;
                     int bc1 = bc0 + 8;
-                    int bc0s = SWZ_B(bc0);
-                    int bc1s = SWZ_B(bc1);
 
-                    unsigned smB0   = (unsigned)__cvta_generic_to_shared(&tileB[buff][bc0s * LDB + lane_col]);
-                    unsigned smB1   = (unsigned)__cvta_generic_to_shared(&tileB[buff][bc0s * LDB + (lane_col + 4)]);
-                    unsigned smB2   = (unsigned)__cvta_generic_to_shared(&tileB[buff][bc1s * LDB + lane_col]);
-                    unsigned smB3   = (unsigned)__cvta_generic_to_shared(&tileB[buff][bc1s * LDB + (lane_col + 4)]);
+                    unsigned smB0   = (unsigned)__cvta_generic_to_shared(&tileB[buff][lane_col * LDB_ROW + bc0]);
+                    unsigned smB1   = (unsigned)__cvta_generic_to_shared(&tileB[buff][(lane_col + 4) * LDB_ROW + bc0]);
+                    unsigned smB2   = (unsigned)__cvta_generic_to_shared(&tileB[buff][lane_col * LDB_ROW + bc1]);
+                    unsigned smB3   = (unsigned)__cvta_generic_to_shared(&tileB[buff][(lane_col + 4) * LDB_ROW + bc1]);
 
                     float bf0, bf1, bf2, bf3;
                     LDS_F32(bf0, smB0);
@@ -267,13 +255,11 @@ void matrixMul_tiled_db_reg_warp_tc(const T* __restrict__ A,
                 {
                     int bc0_1 = warp_offset_col + MMA_N + lane_row;
                     int bc1_1 = bc0_1 + 8;
-                    int bc0_1s = SWZ_B(bc0_1);
-                    int bc1_1s = SWZ_B(bc1_1);
 
-                    unsigned smB0_1 = (unsigned)__cvta_generic_to_shared(&tileB[buff][bc0_1s * LDB + lane_col]);
-                    unsigned smB1_1 = (unsigned)__cvta_generic_to_shared(&tileB[buff][bc0_1s * LDB + (lane_col + 4)]);
-                    unsigned smB2_1 = (unsigned)__cvta_generic_to_shared(&tileB[buff][bc1_1s * LDB + lane_col]);
-                    unsigned smB3_1 = (unsigned)__cvta_generic_to_shared(&tileB[buff][bc1_1s * LDB + (lane_col + 4)]);
+                    unsigned smB0_1 = (unsigned)__cvta_generic_to_shared(&tileB[buff][lane_col * LDB_ROW + bc0_1]);
+                    unsigned smB1_1 = (unsigned)__cvta_generic_to_shared(&tileB[buff][(lane_col + 4) * LDB_ROW + bc0_1]);
+                    unsigned smB2_1 = (unsigned)__cvta_generic_to_shared(&tileB[buff][lane_col * LDB_ROW + bc1_1]);
+                    unsigned smB3_1 = (unsigned)__cvta_generic_to_shared(&tileB[buff][(lane_col + 4) * LDB_ROW + bc1_1]);
 
                     float bf0_1, bf1_1, bf2_1, bf3_1;
                     LDS_F32(bf0_1, smB0_1);
@@ -420,7 +406,7 @@ do { \
     dim3 NAME##Grid(GX, GY); \
     const int NAME##dynSmemSize = 0; \
     GENERATE_KERNEL_CONFIG(matrixMul_tiled_db_reg_warp_tc, NAME, TYPE, TILE) \
-    const int NAME##smemSize = PIPE_DEPTH * (BM * TILE + BN * (TILE + 4)) * sizeof(TYPE); \
+    const int NAME##smemSize = PIPE_DEPTH * (BM * TILE + TILE * (BN + 8)) * sizeof(TYPE); \
     std::string KERNELNAME = #NAME; \
     const size_t pos = KERNELNAME.find("_"); \
     if (pos != std::string::npos) KERNELNAME.replace(pos, 1, "-"); \

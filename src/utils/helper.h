@@ -8,23 +8,27 @@
 constexpr int NRUNS = 10;
 
 #define ROUNDUP(x, y) (((x) + (y) - 1) / (y))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 #define launchKernel(kernelName, numBlocks, numThreads, memPerBlock, streamId, ...) \
 do {                                                                            \
     kernelName<<<numBlocks, numThreads, memPerBlock, streamId>>>(__VA_ARGS__);  \
 } while (0)
 
-#define MeasureTime(ELAPSED, TIMER, KERNEL) \
+#define MeasureTime(ELAPSED, TIMER, KERNEL, ...) \
 do { \
     KERNEL; /* warm up */ \
     float TOTAL = 0.0; \
+    float min_time = 1e9; \
     for (int i = 0; i < NRUNS; ++i) { \
         TIMER.start(); \
         KERNEL; \
         TIMER.stop(); \
-        TOTAL += TIMER.elapsed(); \
+        float t = TIMER.elapsed(); \
+        TOTAL += t; \
+        min_time = MIN(min_time, t); \
     } \
-    ELAPSED = TOTAL / float(NRUNS); \
+    ELAPSED = min_time; \
 } while (0)
 
 #define LAUNCH_TEMPLATE_KERNEL(KERNEL, NAME, TYPE, TILE) \

@@ -8,6 +8,8 @@
 #include "optimization5.cuh"
 #include "optimization6.cuh"
 
+// #define TUNE_TF32
+
 void run_benchmarks(
     float* hA, 
     float* hB, 
@@ -30,6 +32,7 @@ void run_benchmarks(
             kTileSize, kTileSize 
         );
     }
+    #if !defined(TUNE_TF32)
     for (int kTileSize : {8, 16}) {
         BENCHMARK_OPT2_KERNEL(Tiled_DB, float, 
             // k-tile size
@@ -59,12 +62,13 @@ void run_benchmarks(
             OPT5_NUM_WARP_TILES * 32, 1
         );
     }
+    #endif
     // TF32 version has MMA_K of 8, so we only benchmark with k-tile size of 8.
     #if defined(TUNE_TF32)
     float minTime = 1e9;
     int best_gx = 0, best_gy = 0;
-    for (int by = 64; by <= 128; by += 8) {
-        for (int bx = 128; bx <= 512; bx += 4) {
+    for (int by = 32; by <= 256; by += 4) {
+        for (int bx = 32; bx <= 256; bx += 4) {
             BENCHMARK_OPT6_KERNEL(Tiled_DB_Reg_Vec_Warp_TC, float,
                 MMA_K, // k-tile size
                 // block size (x, y)
@@ -98,5 +102,5 @@ void run_benchmarks(
     checkCUBLAS(cublasDestroy(handle), "cublasDestroy");
 
     table_ruler(RULER_WIDTH, '-', true);
-    
+
 }
