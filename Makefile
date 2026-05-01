@@ -10,7 +10,7 @@ CXX  := g++
 NVCC := $(CUDA_PATH)/bin/nvcc -ccbin $(CXX)
 
 CCFLAGS   := -std=c++20 -fdiagnostics-show-option
-NVCCFLAGS := -m64 -std=c++20 -lineinfo
+NVCCFLAGS := -m64 -std=c++20 -lineinfo --expt-extended-lambda
 
 INCLUDES  := -I../../common/inc
 EXTRALIB  :=

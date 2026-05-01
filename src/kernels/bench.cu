@@ -98,4 +98,5 @@ void run_benchmarks(
     checkCUBLAS(cublasDestroy(handle), "cublasDestroy");
 
     table_ruler(RULER_WIDTH, '-', true);
+    
 }

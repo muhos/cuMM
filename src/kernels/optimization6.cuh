@@ -147,40 +147,39 @@ void matrixMul_tiled_db_reg_warp_tc(const T* __restrict__ A,
     #define VECTORIZE(ARRAY) reinterpret_cast<float4*>(&(ARRAY))
     #define VECTORIZE_const(ARRAY) reinterpret_cast<const float4*>(&(ARRAY))
 
-    #undef LOAD_SHARED_TILE
-    #define LOAD_SHARED_TILE(TILE, BUFF)                                                   \
-    {                                                                                      \
-        for (int i = tx; i < BM * TILESIZE4; i += blockDim.x) {                             \
-            int r = i / TILESIZE4;                                                          \
-            int k4 = (i % TILESIZE4) * VEC;                                                   \
-            unsigned smemA = (unsigned)__cvta_generic_to_shared(&tileA[BUFF][r * TILESIZE + SWZ_A(r, k4)]); \
-            CP_ASYNC_CG(smemA, VECTORIZE_const(A[(by_offset + r) * N + ((TILE) * TILESIZE + k4)]), 16); \
-        }                                                                                  \
-        for (int i = tx; i < BN4 * TILESIZE; i += blockDim.x) {                             \
-            int k = i % TILESIZE;                                                          \
-            int c4 = (i / TILESIZE) * VEC;                                                          \
-            const float4& b = *VECTORIZE_const(B[((TILE) * TILESIZE + k) * M + (bx_offset + c4)]); \
-            unsigned smemB_0 = (unsigned)__cvta_generic_to_shared(&tileB[BUFF][SWZ_B(c4) * LDB + k]); \
-            unsigned smemB_1 = (unsigned)__cvta_generic_to_shared(&tileB[BUFF][SWZ_B(c4 + 1) * LDB + k]); \
-            unsigned smemB_2 = (unsigned)__cvta_generic_to_shared(&tileB[BUFF][SWZ_B(c4 + 2) * LDB + k]); \
-            unsigned smemB_3 = (unsigned)__cvta_generic_to_shared(&tileB[BUFF][SWZ_B(c4 + 3) * LDB + k]); \
-            CP_ASYNC_CA(smemB_0, &b.x, 4); \
-            CP_ASYNC_CA(smemB_1, &b.y, 4); \
-            CP_ASYNC_CA(smemB_2, &b.z, 4); \
-            CP_ASYNC_CA(smemB_3, &b.w, 4); \
-        }                                                                                  \
-    }
-
     const int numTiles = ROUNDUP(N, TILESIZE);
 
-    for (int by = blockIdx.y; by < ROUNDUP(M, BM); by += gridDim.y) {
-        for (int bx = blockIdx.x; bx < ROUNDUP(M, BN); bx += gridDim.x) {
+    for (int by = blockIdx.y, yblocks = ROUNDUP(M, BM); by < yblocks; by += gridDim.y) {
+        for (int bx = blockIdx.x, xblocks = ROUNDUP(M, BN); bx < xblocks; bx += gridDim.x) {
 
             int by_offset = by * BM;
             int bx_offset = bx * BN;
 
+            auto load_tile = [&](const int& TILE, const int& BUFF)
+            {
+                for (int i = tx; i < BM * TILESIZE4; i += blockDim.x) { 
+                    int r = i / TILESIZE4; 
+                    int k4 = (i % TILESIZE4) * VEC; 
+                    unsigned smemA = (unsigned)__cvta_generic_to_shared(&tileA[BUFF][r * TILESIZE + SWZ_A(r, k4)]); 
+                    CP_ASYNC_CG(smemA, VECTORIZE_const(A[(by_offset + r) * N + ((TILE) * TILESIZE + k4)]), 16); 
+                }
+                for (int i = tx; i < BN4 * TILESIZE; i += blockDim.x) {
+                    int k = i % TILESIZE;
+                    int c4 = (i / TILESIZE) * VEC; 
+                    const float4& b = *VECTORIZE_const(B[((TILE) * TILESIZE + k) * M + (bx_offset + c4)]); 
+                    unsigned smemB_0 = (unsigned)__cvta_generic_to_shared(&tileB[BUFF][SWZ_B(c4) * LDB + k]); 
+                    unsigned smemB_1 = (unsigned)__cvta_generic_to_shared(&tileB[BUFF][SWZ_B(c4 + 1) * LDB + k]); 
+                    unsigned smemB_2 = (unsigned)__cvta_generic_to_shared(&tileB[BUFF][SWZ_B(c4 + 2) * LDB + k]); 
+                    unsigned smemB_3 = (unsigned)__cvta_generic_to_shared(&tileB[BUFF][SWZ_B(c4 + 3) * LDB + k]); 
+                    CP_ASYNC_CA(smemB_0, &b.x, 4); 
+                    CP_ASYNC_CA(smemB_1, &b.y, 4); 
+                    CP_ASYNC_CA(smemB_2, &b.z, 4); 
+                    CP_ASYNC_CA(smemB_3, &b.w, 4); 
+                }
+            };
+
             for (int preload = 0; preload < PIPE_DEPTH - 1 && preload < numTiles; ++preload) {
-                LOAD_SHARED_TILE(preload, preload);
+                load_tile(preload, preload);
                 CP_ASYNC_COMMIT_GROUP();
             }
 
@@ -193,7 +192,6 @@ void matrixMul_tiled_db_reg_warp_tc(const T* __restrict__ A,
             float c11_0=0.f, c11_1=0.f, c11_2=0.f, c11_3=0.f, c11_4=0.f, c11_5=0.f, c11_6=0.f, c11_7=0.f;
 
             // Main K-tiling loop
-            #pragma unroll 1
             for (int t = 0; t < numTiles; ++t) {
 
                 __syncthreads();
@@ -201,7 +199,7 @@ void matrixMul_tiled_db_reg_warp_tc(const T* __restrict__ A,
                 const int next_t = t + PIPE_DEPTH - 1; // the tile index that will be loaded next after this iteration
                 if (next_t < numTiles) {
                     const int next_buff = next_t % PIPE_DEPTH; // modulo for ping-pong buffering
-                    LOAD_SHARED_TILE(next_t, next_buff);
+                    load_tile(next_t, next_buff);
                     CP_ASYNC_COMMIT_GROUP();
                     CP_ASYNC_WAIT_GROUP(PIPE_DEPTH - 2); // 1 tile is in flight (pending)
                 }
