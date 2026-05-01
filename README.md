@@ -2,7 +2,7 @@
 [![Build Status](https://github.com/muhos/cuMM/actions/workflows/test-build.yml/badge.svg)](https://github.com/muhos/cuMM/actions/workflows/test-build.yml)
 # CUDA Matrix Multiplication: From Naive to Tensor Cores
 
-A progressive, hand-crafted implementation of single-precision matrix multiplication (SGEMM) in CUDA C++, built from scratch for efficient state-vector operations and AI-driven workloads. The final kernel uses `TF32` Tensor cores, asynchronous pipelining, warp-level tiling, and bank-conflict-free shared memory. It achieves 65.19 TF32 TFLOPS on `(4096 x 10240 x 4096)` matrix dimensions, outperforming cuBLAS SGEMM (61.79 TFLOPS) and reaching 87% of cuBLAS Tensor Core throughput (74.58 TFLOPS).
+A progressive, hand-crafted implementation of single-precision matrix multiplication (SGEMM) in CUDA C++, built from scratch for efficient state-vector operations and AI-driven workloads. The final kernel uses `TF32` Tensor cores, asynchronous pipelining, warp-level tiling, and bank-conflict-free shared memory. It achieves 70 TF32 TFLOPS on `(4096 x 10240 x 4096)` matrix dimensions, outperforming cuBLAS SGEMM (70 TFLOPS) and reaching 95% of cuBLAS Tensor Core throughput (74.58 TFLOPS).
 
 ---
 
@@ -35,7 +35,7 @@ Key techniques:
 
 - **TF32 Tensor Cores via inline PTX**, Uses `wmma.load.a/b.sync.aligned` and `wmma.mma.sync` PTX instructions directly (m16n16k8 shape, TF32 precision, row/col layout). Bypasses the `nvcuda::wmma` C++ wrappers for full control over register mapping.
 - **`cp.async` asynchronous pipelining**, Global-to-shared memory copies are issued asynchronously using `cp.async.cg` / `cp.async.ca` PTX with `CP_ASYNC_COMMIT_GROUP` and `CP_ASYNC_WAIT_GROUP(1)`, allowing computation on the current tile to overlap with prefetch of the next. A double-buffered scheme manages the two shared memory stages.
-- **Bank-conflict-free shared memory**, Shared memory layouts for A and B use swizzle functions (`SWZ_A`, `SWZ_B`) to permute storage indices, eliminating bank conflicts on `ld.shared` without excessive padding overhead.
+- **Bank-conflict-free shared memory**, Shared memory layouts for A and/or B use swizzle functions to permute storage indices and/or padding, eliminating bank conflicts on without excessive padding overhead.
 - **Warp-level accumulation**, Each warp accumulates a `WM x WN = 32 x 32` output tile across two MMA sub-tiles (`WARP_MMA_M_ITERS x WARP_MMA_N_ITERS = 2 x 2`). Accumulators are kept in registers as named float variables throughout the K-loop.
 - **Full unrolling of warp tile loops**, The `WARP_MMA_M_ITERS` and `WARP_MMA_N_ITERS` loops over MMA sub-tiles are fully unrolled (`#pragma unroll`). With all MMA instructions visible simultaneously, the compiler can interleave independent `wmma.mma.sync` operations, hide their latency through instruction-level parallelism (ILP), and assign accumulator registers statically &ndash; reducing register pressure compared to a dynamic loop where the compiler must conservatively spill.
 - **Vectorized stores**, Results are written back using inline PTX `st.global.v2.f32` (64-bit vectorized stores) to maximize store throughput.
@@ -133,7 +133,7 @@ Benchmarked on **NVIDIA RTX 4090** (82.6 TFLOPS TF32 peak), matrix size 4096 x 1
  Tiled-DB_Reg_Vec         |    16 |     8192 B | (16, 16)   | (32, 32)   |       7.55 |  45.48 | PASSED
  Tiled-DB_Reg_Vec_Warp    |     8 |     4096 B | (256, 1)   | (32, 32)   |       7.89 |  43.53 | PASSED <-- Stage 5
  Tiled-DB_Reg_Vec_Warp    |    16 |     8192 B | (256, 1)   | (32, 32)   |       8.28 |  41.51 | PASSED
- Tiled-DB_Reg_Vec_Warp_TC |     8 |    21504 B | (256, 1)   | (16, 47)   |       5.27 |  65.19 | PASSED <-- Stage 6
+ Tiled-DB_Reg_Vec_Warp_TC |     8 |    21504 B | (256, 1)   | (16, 47)   |       4.90 |  70.08 | PASSED <-- Stage 6
  cuBLAS-Warmup            |   n/a |         na | na         | na         |      33.84 |  10.16 | PASSED
  cuBLAS-SGEMM             |   n/a |         na | na         | na         |       5.56 |  61.79 | PASSED
  cuBLAS-Tensor            |   n/a |         na | na         | na         |       4.61 |  74.58 | PASSED
@@ -151,9 +151,6 @@ The `wmma` C++ API is convenient but abstracts over the register layout, limitin
 
 ### Why `cp.async` instead of manual prefetch?
 Manual prefetch with `__syncthreads()` still serializes: the sync forces all threads to wait before computation can proceed. `cp.async` allows the copy to remain in flight (`CP_ASYNC_WAIT_GROUP(1)`; only requiring the *previous* tile to have landed, not the one being issued), enabling true overlap between memory transfer and computation.
-
-### Swizzling to eliminate bank conflicts
-Without swizzling, the transposed B layout (`tileB[col][k]`) causes 16-way bank conflicts on `ld.shared` when multiple lanes in a warp access the same bank. `SWZ_B(c) = c ^ ((c & 8) >> 2)` permutes the column index such that consecutive warp lanes hit distinct banks. Similarly, `SWZ_A(r, k) = k ^ (r & 4)` eliminates conflicts in A's row-major layout.
 
 ---
 
